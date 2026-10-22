@@ -1,15 +1,11 @@
 # moneyapp-web
 
-記帳電腦版，靜態 HTML/CSS/JavaScript 網站。入口為 `index.html`，無須建置。
+記帳電腦版，靜態網站。
 
-## GitHub Pages
+## v253 自動同步
+設定一次後加密記住此裝置的 Token 與同步密碼，重新開啟自動連接。已儲存內容不回填輸入框，不提供顯示或複製；可更換、暫停或忘記。清除網站資料後需重新設定。
 
-在儲存庫 Settings → Pages，選擇 Deploy from a branch，分支 `main`，資料夾 `/(root)`，然後 Save。
+前台每 30 秒及修改後自動同步。帳目仍使用私人資料儲存庫，網站程式碼不包含帳目或憑證。兩端都有修改時保留雙份並要求選擇，不會自動覆蓋。
 
-## 帳目與同步
-
-帳目儲存在目前瀏覽器。移至新網址後不會自動搬移舊網址的本機帳目；先備份，或在新網址連接相同的 GitHub 私人帳目儲存庫。
-
-網站程式碼儲存庫 `moneyapp-web` 與加密帳目儲存庫分開。不要把帳目備份、Token、同步密碼或 AI API 密鑰上傳至網站儲存庫。
-
-這是靜態版本，沒有原先 Sites 網址的登入門檻。GitHub 同步與 AI 服務仍需使用者自行設定。
+## 發佈
+Settings → Pages → Deploy from a branch → main → /(root)。
