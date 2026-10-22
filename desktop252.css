@@ -194,3 +194,25 @@ html.desktop252[data-theme=dark] .desk-tabs254{background:#172338}html.desktop25
 html.desktop252[data-theme=dark] .desk-recurring254{--rc-bg:#151d2a;--rc-surface:#1c2738;--rc-text:#b6cae7;--rc-muted:#91a6c4;--rc-line:#2c3d56;--rc-tint:#233550;--rc-accent:#9bbdf6}
 /* Keep the dialog inside the backdrop's scaled 28px padding on every side. */
 .desktop252 .book-fullpage.desk-sync-dialog{width:min(1060px,calc(var(--desk-vw) - 56px))!important;height:min(800px,calc(var(--desk-vh) - 56px))!important;max-height:calc(var(--desk-vh) - 56px)!important}
+/* v255: summary cards use the phone's ledger scope and act as detail entrances. */
+.desk-metrics article[role=button]{cursor:pointer;transition:border-color .15s}
+.desk-metrics article[role=button]:hover{border-color:#c7d7f2}
+.desk-metrics article[role=button]:focus-visible{outline:2px solid #8bafee;outline-offset:3px}
+.desk-home-return255{display:block;margin:0 0 12px;padding:0;background:none;border:0;color:#7892b9;font-size:11px}
+/* Dates are plain text inputs, including selection, focus and browser autofill. */
+.desktop252 .desk-editor #txDate,.desktop252 .desk-editor #txDate:focus,.desktop252 .desk-editor #txDate:focus-visible{outline:0!important;box-shadow:none!important;border:0!important;background:transparent!important;outline-offset:0!important;appearance:none}
+.desktop252 .desk-editor #txDate::selection{background:#e9edf3;color:inherit}
+.desktop252 .desk-editor .tx-chip:has(#txDate):focus-within{border-color:#e4ebf6!important;outline:0!important;box-shadow:none!important;background:#fff!important}
+/* Selection is a label above its day, with no full-height hover/selection band. */
+.desktop252 .desk-bar254,.desktop252 .desk-bar254:hover,.desktop252 .desk-bar254.selected,.desktop252 .desk-bar254:active,.desktop252 .desk-line-targets254 button,.desktop252 .desk-line-targets254 button:hover{background:transparent!important;box-shadow:none!important}
+.desktop252 .desk-bars{height:260px;padding-top:70px}
+.desk-chart-bubble255{position:absolute;left:50%;transform:translateX(-50%);width:max-content;max-width:190px;min-width:136px;padding:9px 12px;border:1px solid #dfe7f4;border-radius:8px;background:#fff;color:#617999;font-size:10px;line-height:1.65;text-align:left;z-index:5;pointer-events:none;box-shadow:none;white-space:nowrap}
+.desk-chart-bubble255.edge-start{left:0;transform:none}.desk-chart-bubble255.edge-end{left:auto;right:0;transform:none}
+.desk-chart-bubble255 b,.desk-chart-bubble255 em{display:block;font:inherit}.desk-chart-bubble255 b{font-weight:600;color:#59749a;margin-bottom:2px}
+.desktop252 .desk-line-targets254 .desk-chart-bubble255{font-size:10px;color:#617999;white-space:nowrap}
+.desktop252 .desk-line-targets254 .desk-chart-bubble255 em,.desktop252 .desk-line-targets254 .desk-chart-bubble255 b{display:block}
+.desktop252 .desk-chart-bubble255:after{content:'';position:absolute;top:100%;left:50%;margin-left:-4px;border:5px solid transparent;border-top-color:#dfe7f4}
+.desktop252 .desk-line254{margin-top:65px;height:205px}
+.desktop252 .desk-line-targets254 span:not(.desk-chart-bubble255){bottom:0}
+.desktop252 .desk-line-targets254 button:not(:first-child):not(:last-child):not(:nth-child(5n)) .desk-chart-bubble255{display:block}
+html.desktop252[data-theme=dark] .desk-chart-bubble255{background:#202e43;border-color:#3b506c;color:#bdd0ea}html.desktop252[data-theme=dark] .desk-chart-bubble255 b{color:#bfd5f3}html.desktop252[data-theme=dark] .desk-editor .tx-chip:has(#txDate):focus-within{background:#202e43!important;border-color:#31435e!important}
