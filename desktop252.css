@@ -266,3 +266,6 @@ html.desktop252[data-theme=dark] .desk-fx258{--fx-text:#c0cee0;--fx-muted:#8fa4b
 
 .desk-fx258 .fx249-currency{max-width:none;width:100%}.desk-fx258 .fx249-currency>span{max-width:none;flex-shrink:0}.desktop252 .fx249-options{display:grid;column-gap:20px}.desk-fx258 .fx249-row input{caret-color:currentColor}.desk-fx258 .fx249-links{justify-content:flex-start}
 .desktop252 .fx249-picker{max-width:600px}
+
+/* Shared MoneyApp brand asset; preserve the sidebar badge dimensions. */
+.desk-brand>span{background:transparent;overflow:hidden;flex-shrink:0}.desk-brand-icon{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
