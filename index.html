@@ -25994,6 +25994,23 @@ function paymentState(text){const t=String(text||'').normalize('NFKC');
 }
 const api={guidance,paymentState};root.moneyAppReceiptExamples=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window==='object'?window:globalThis);
+/* Read-only OCR evaluation. No ledger, account, memory or permanent-rule API is used. */
+(function(root){
+'use strict';
+function create(host){let samples=[],rows=[],running=false,stop=false;const report=()=>({format:'moneyapp-ocr-evaluation-1',running,total:samples.length,completed:rows.filter(x=>x.status==='completed').length,failed:rows.filter(x=>x.status==='failed').length,remaining:samples.length-rows.length,accuracy:null,accuracyNote:'請逐張核對轉錄；成功回應不等於識別正確。',rows:rows.map(x=>({...x}))});const changed=()=>host.onChange?.(report());
+ function load(pack){if(running)throw Error('請先停止目前測試');if(pack?.format!=='moneyapp-image-benchmark-1'||!Array.isArray(pack.samples)||pack.samples.length<1||pack.samples.length>200)throw Error('測試包格式不正確（最多200張）');const ids=new Set(),hashes=new Set();for(const s of pack.samples){if(typeof s.id!=='string'||ids.has(s.id)||typeof s.sha256!=='string'||!/^[a-f0-9]{64}$/.test(s.sha256)||hashes.has(s.sha256)||typeof s.data!=='string'||s.data.length>24*1024*1024||!/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(s.data))throw Error('測試包有重複、缺失或無效圖片');ids.add(s.id);hashes.add(s.sha256);}samples=pack.samples;rows=[];changed();return report();}
+ async function run(){if(running||!samples.length)return report();running=true;stop=false;changed();try{for(const s of samples){if(stop)break;if(rows.some(x=>x.id===s.id))continue;const started=Date.now();try{if(host.verifyHash)await host.verifyHash(s);const response=await host.request(await host.body(s.data)),text=host.transcript(response);rows.push({id:s.id,sha256:s.sha256,country:s.country||'',sourceUrl:s.sourceUrl||'',status:'completed',transcript:text,model:response.model||'',usage:response.usage||null,elapsedMs:Date.now()-started,reference:s.reference||null});}catch(e){const message=String(e.message||e).replace(/sk-[A-Za-z0-9_-]+/g,'[已隱藏]');rows.push({id:s.id,sha256:s.sha256,status:'failed',error:message,elapsedMs:Date.now()-started});if(/401|403|429|api.?key|授權|授权|密鑰|密钥|餘額|余额|quota|rate.?limit/i.test(message))stop=true;}changed();}}finally{running=false;changed();}return report();}
+ return {load,run,report,stop(){stop=true;changed();},clear(){if(running)throw Error('請先停止目前測試');samples=[];rows=[];changed();}};
+}
+root.moneyAppReceiptEvaluationFactory={create};if(typeof module==='object'&&module.exports)module.exports={create};
+if(typeof window!=='object')return;
+let runner;
+function status(r){const el=document.getElementById('receiptEvalStatus');if(el)el.textContent='圖片 '+r.total+' 張 · 已回應 '+r.completed+' · 失敗 '+r.failed+' · 尚餘 '+r.remaining+(r.running?' · 測試中':'');for(const id of ['receiptEvalLoad','receiptEvalStart']){const b=document.getElementById(id);if(b)b.disabled=r.running;}const exportButton=document.getElementById('receiptEvalExport');if(exportButton)exportButton.disabled=!r.rows.length;}
+function instance(){return runner||(runner=create({body:data=>root.moneyAppOCR.body(data),request:body=>root.moneyAppV220Cost.request(body,{purpose:'receipt-evaluation',runId:'receipt-eval-'+Date.now()}),transcript:r=>root.moneyAppOCR.transcript(r),verifyHash:async s=>{if(!crypto?.subtle)throw Error('目前環境未能驗證圖片雜湊');const raw=atob(s.data.split(',')[1]),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');if(hash!==s.sha256)throw Error('圖片雜湊不符：'+s.id);},onChange:status}));}
+function open(){showBookPage('圖片辨識評測',`<div class="ai-panel"><h3>逐張核對真實模型轉錄</h3><p>匯入測試包，使用目前 App 的 AI 連線。每張獨立請求，會產生 API 用量；不使用帳目、帳戶或記憶作提示，也不會入帳。</p><label>選擇測試包 JSON<input id="receiptEvalLoad" type="file" accept="application/json,.json" onchange="moneyAppReceiptEvaluation.loadFile(this)"></label><p id="receiptEvalStatus" role="status"></p><div class="actions"><button id="receiptEvalStart" class="primary" onclick="moneyAppReceiptEvaluation.run()">開始／繼續</button><button class="secondary" onclick="moneyAppReceiptEvaluation.stop()">完成目前一張後停止</button></div><button id="receiptEvalExport" class="secondary full" onclick="moneyAppReceiptEvaluation.export()" disabled>匯出逐張結果</button><p>成功回應只代表模型完成轉錄，不代表金額、日期或幣別正確。未完成人工核對的圖片不計算準確率。關閉 App 會釋放本次進度，請先匯出。</p></div>`);status(instance().report());}
+async function loadFile(input){try{const f=input.files?.[0];if(!f)return;if(f.size>80*1024*1024)throw Error('測試包超過80MB');instance().load(JSON.parse(await f.text()));}catch(e){alert(String(e.message||e));}}
+root.moneyAppReceiptEvaluation={open,loadFile,async run(){if(!instance().report().total){alert('請先選擇測試包');return;}try{await instance().run();}catch(e){alert(String(e.message||e));}},stop(){instance().stop();},export(){const blob=new Blob([JSON.stringify(instance().report(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='MoneyApp-OCR-results-'+Date.now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}};
+})(typeof window==='object'?window:globalThis);
 /* Recognition pixels are transient; compact receipt attachments retain the old format. */
 (function(root){
 'use strict';
@@ -26092,27 +26109,41 @@ window.moneyAppV220Cost={request,measured,readImage,peek,tabulate,referenceTable
 })();
 
 </script>
-<script type="text/moneyapp261" id="moneyAppV207IntegratedAgent">/* Draft evidence validation, independent of upload and tool orchestration. */
+<script type="text/moneyapp261" id="moneyAppV207IntegratedAgent">/* Monetary punctuation and printed numerals; ambiguity remains a set of possible values. */
 (function(root){
 'use strict';
+function digits(text){return String(text||'').normalize('NFKC').replace(/[٠-٩۰-۹०-९]/g,c=>String(c.charCodeAt(0)-(c>='०'?'०':c>='۰'?'۰':'٠').charCodeAt(0))).replace(/[−–]/g,'-');}
+function values(raw){let s=digits(raw).replace(/[\s'’٬]/g,'');const arabicDecimal=s.includes('٫');s=s.replace(/٫/g,'.');let result=[];if(!/^[+-]?\d+(?:[.,]\d+)*$/.test(s))return result;
+ const commas=s.includes(','),dots=s.includes('.');
+ if(commas&&dots){const decimal=s.lastIndexOf(',')>s.lastIndexOf('.')?',':'.';const other=decimal===','?'.':',';s=s.split(other).join('');const at=s.lastIndexOf(decimal);s=s.slice(0,at).split(decimal).join('')+'.'+s.slice(at+1);result=[Number(s)];}
+ else if(commas||dots){const sep=commas?',':'.',parts=s.split(sep),last=parts.at(-1);if(parts.length>2&&parts.slice(1).every(x=>x.length===3))result=[Number(parts.join(''))];else if(parts.length===2&&last.length===3&&!arabicDecimal)result=[Number(s.replace(',','.')),Number(parts.join(''))];else{const at=s.lastIndexOf(sep);result=[Number(s.slice(0,at).split(sep).join('')+'.'+s.slice(at+1))];}}
+ else result=[Number(s)];return [...new Set(result.filter(Number.isFinite).map(Math.abs))];
+}
+function tokens(text){return (digits(text).match(/[+-]?\d+(?:(?:[.,٫٬'’]|[ \u00a0\u202f](?=\d{3}(?:\D|$)))\d+)*/g)||[]).map(values);}
+const api={digits,values,tokens};root.moneyAppMoneyNumbers=api;if(typeof module==='object'&&module.exports)module.exports=api;
+})(typeof window==='object'?window:globalThis);
+/* Draft evidence validation, independent of upload and tool orchestration. */
+(function(root){
+'use strict';
+const monetary=root.moneyAppMoneyNumbers||(typeof require==='function'?require('./money-numbers.js'):null);
 // Check labelled money within the selected transaction rows, never across the whole screenshot.
 function amountEvidence(amount,quote,rows){
- const clean=s=>String(s).normalize('NFKC').replace(/,/g,'');
+ const clean=s=>monetary.digits(s);
  const text=clean(rows),q=clean(quote),n=Math.abs(amount);
- const paid=/(?:實付款|实付款|實付價|实付价|實付|实付|實際支付|实际支付|實際付款|实际付款|支付金額|支付金额|付款金額|付款金额|amount paid|paid amount|total paid|amount deducted|deducted amount|扣款金額|扣款金额)\s*[:：]?\s*(?:HK\$|US\$|HKD|CNY|RMB|USD|JPY|EUR|[¥￥$€])?\s*[+−–-]?\s*(\d+(?:\.\d{1,2})?)/gi;
- const candidates=[...text.matchAll(paid)].map(m=>Number(m[1]));
- if(candidates.length&&(!candidates.every(v=>v===candidates[0])||candidates[0]!==n))return false;
+ const paid=/(?:實付款|实付款|實付價|实付价|實付|实付|實際支付|实际支付|實際付款|实际付款|支付金額|支付金额|付款金額|付款金额|amount paid|paid amount|total paid|amount deducted|deducted amount|扣款金額|扣款金额|grand total|total ttc|gesamtbetrag|お支払金額)\s*[:：]?\s*(?:HK\$|US\$|RMB|[A-Z]{3}|RM|Rp|[¥￥$€₹₩₫฿]|円|人民幣|人民币|港幣|港元)?\s*[+−–-]?\s*(\d+(?:(?:[.,٫٬'’]\d+)|(?:[ \u00a0\u202f]\d{3}(?!\d)))*)/gi;
+ const candidates=[...text.matchAll(paid)].map(m=>monetary.values(m[1]));
+ if(candidates.length&&!candidates.every(v=>v.includes(n)))return false;
  const lines=text.split('\n').filter(l=>l.includes(q));
  // A bare numeric quote on a balance/order/quantity line cannot hide its label.
  if(lines.length&&lines.every(l=>/(?:餘額|余额|balance|訂單號|订单号|order\s*(?:id|number|no\.)|數量|数量|quantity)/i.test(l)&&!/(?:實付|实付|實際支付|实际支付|amount paid|total paid)/i.test(l)))return false;
  // Quotes containing several distinct numbers are not a precise monetary citation.
- const nums=[...q.matchAll(/(?:[+−–-]?)(\d+(?:\.\d+)?)/g)].map(m=>Number(m[1]));
- return !!q&&(!nums.length||nums.every(v=>v===n));
+ const nums=monetary.tokens(q);
+ return !!q&&(!nums.length||nums.every(v=>v.includes(n)));
 }
 function localDate(d){return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')}
 function validDate(value){const m=/^(\d{4})\/(\d{2})\/(\d{2})$/.exec(value);if(!m)return false;const d=new Date(+m[1],+m[2]-1,+m[3]);return d.getFullYear()===+m[1]&&d.getMonth()+1===+m[2]&&d.getDate()===+m[3];}
 function clock(quote){
- const q=String(quote||'').normalize('NFKC');
+ const q=monetary.digits(quote||'');
  if(/狀態列|状态栏|status\s*bar/i.test(q))return '';
  const integer=text=>{if(/^\d+$/.test(text))return Number(text);const digits={'零':0,'〇':0,'一':1,'二':2,'兩':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};if(text.includes('十')){const [a,b]=text.split('十');if(text.split('十').length!==2||a&&digits[a]===undefined||b&&digits[b]===undefined)return NaN;return (a?digits[a]:1)*10+(b?digits[b]:0);}if([...text].every(c=>digits[c]!==undefined))return Number([...text].map(c=>digits[c]).join(''));return NaN;};
  let hour,minute,match=q.match(/(?:^|[^\d:])([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(?!\d|:)/);
@@ -26130,17 +26161,26 @@ function quotedClock(quote,rows){
  return times.size===1?[...times][0]:'';
 }
 function currencyEvidence(code,quote){
- if(!/^[A-Z]{3}$/.test(code||''))return false;const q=String(quote||'').normalize('NFKC');
+ if(!/^[A-Z]{3}$/.test(code||''))return false;const q=monetary.digits(quote||'');
  // An explicit three-letter code is usable; generic dollar/yen symbols remain ambiguous.
  if(new RegExp('(?:^|[^A-Za-z])'+code+'(?=$|[^A-Za-z])','i').test(q))return true;
- const names={HKD:/HK\$|港幣|港币|港元/i,CNY:/\bRMB\b|人民幣|人民币/i,JPY:/日圓|日元|円/i,USD:/US\$|美元/i,EUR:/歐元|欧元|€/i,GBP:/英鎊|英镑|£/i,TWD:/新臺幣|新台幣|臺幣|台幣|NT\$/i,KRW:/韓元|韩元/i,SGD:/新加坡元|(?:^|[^A-Z])S\$/i,AUD:/澳大利亞元|澳大利亚元|澳元|(?:^|[^A-Z])AU\$/i,CAD:/加拿大元|加元|(?:^|[^A-Z])CA\$/i};
+ const names={INR:/₹|印度盧比|印度卢比/i,THB:/฿|泰銖|泰铢|บาท/i,MYR:/\bRM\s*\d|馬幣|马币|令吉/i,IDR:/\bRp\.?\s*\d|印尼盾|rupiah/i,VND:/₫|越南盾/i,HKD:/HK\$|港幣|港币|港元/i,CNY:/\bRMB\b|人民幣|人民币/i,JPY:/日圓|日元|円/i,USD:/US\$|美元/i,EUR:/歐元|欧元|€/i,GBP:/英鎊|英镑|£/i,TWD:/新臺幣|新台幣|臺幣|台幣|NT\$/i,KRW:/韓元|韩元/i,SGD:/新加坡元|(?:^|[^A-Z])S\$/i,AUD:/澳大利亞元|澳大利亚元|澳元|(?:^|[^A-Z])AU\$/i,CAD:/加拿大元|加元|(?:^|[^A-Z])CA\$/i};
  return !!names[code]?.test(q);
 }
+function internationalDate(text){
+ const q=monetary.digits(text).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const make=(y,m,d)=>{const v=String(y)+'/'+String(m).padStart(2,'0')+'/'+String(d).padStart(2,'0');return validDate(v)?v:'';};
+ const n=q.match(/(?:^|[^\d])(\d{1,2})[/.-](\d{1,2})[/.-](20\d{2})(?!\d)/);
+ if(n){const a=+n[1],b=+n[2];if(a>12&&b<=12)return make(n[3],b,a);if(b>12&&a<=12)return make(n[3],a,b);if(a===b)return make(n[3],a,b);return '';}
+ const groups=[['jan','january','janvier','januar'],['feb','february','fevrier','februar'],['mar','march','mars','marz'],['apr','april','avril'],['may','mai'],['jun','june','juin','juni'],['jul','july','juillet','juli'],['aug','august','aout'],['sep','sept','september','septembre'],['oct','october','octobre','oktober'],['nov','november','novembre'],['dec','december','decembre','dezember']];
+ const months=Object.fromEntries(groups.flatMap((names,i)=>names.map(name=>[name,i+1]))),names=Object.keys(months).sort((a,b)=>b.length-a.length).join('|');
+ let m=q.match(new RegExp('(?:^|[^a-z0-9])(\\d{1,2})[ .-]+('+names+')\\.?[ ,.-]+(20\\d{2})(?!\\d)'));if(m)return make(m[3],months[m[2]],m[1]);m=q.match(new RegExp('(?:^|[^a-z])('+names+')\\.?[ .-]+(\\d{1,2})[ ,.-]+(20\\d{2})(?!\\d)'));return m?make(m[3],months[m[1]],m[2]):'';
+}
 function datetime(a){
- const q=String(a.quote||'').normalize('NFKC'),h=String(a.header||'').normalize('NFKC');let date='',time='',suggestedDate='',dateLabel='';
+ const q=monetary.digits(a.quote||''),h=monetary.digits(a.header||'');let date='',time='',suggestedDate='',dateLabel='';
  if(a.source==='statusbar'||/狀態列|状态栏|status\s*bar/i.test(q))return {date,time,source:'source-evidence'};
  const full=q.match(/\b(20\d{2})[年/.-](\d{1,2})[月/.-](\d{1,2})日?/);
  if(full)date=[full[1],full[2].padStart(2,'0'),full[3].padStart(2,'0')].join('/');
+ else if(internationalDate(q))date=internationalDate(q);
  else if(a.source==='text'&&/今天|今日|昨天|昨日|昨晚|琴日|尋日|寻日|琴晚|前天|明天|聽日|听日/.test(q)){
   const now=new Date();now.setDate(now.getDate()-(/前天/.test(q)?2:/昨天|昨日|昨晚|琴日|尋日|寻日|琴晚/.test(q)?1:/明天|聽日|听日/.test(q)?-1:0));date=localDate(now);
  }else{
@@ -26167,7 +26207,7 @@ let n=typeof d.amount==='number'?d.amount:null;const quote=r.evidence.amountQuot
 const rowEvidence=r.sourceText||evidence;
 if(!src||!Number.isFinite(n)||n===0||!quote||!evidence.includes(quote)||!rowEvidence.includes(quote))n=null;
 // Amount provenance must be a transaction quote; balance/order/quantity quotes cannot authorize a monetary amount.
-if(n!==null){const numbers=(quote.normalize('NFKC').replace(/,/g,'').replace(/[−–]/g,'-').match(/[+-]?\d+(?:\.\d+)?/g)||[]).map(Number);if(!numbers.length){let parsed=window.moneyAppV200Diagnostics?.singleMoney?.(quote)?.value;if(!Number.isFinite(parsed)||Math.abs(parsed)!==Math.abs(n))n=null;}if(numbers.length&& !numbers.some(v=>Math.abs(v)===Math.abs(n)))n=null;if(/余额|餘額|balance|订单号|訂單號|数量|數量/i.test(quote))n=null;}
+if(n!==null){const numbers=monetary.tokens(quote).flat();if(!numbers.length){let parsed=window.moneyAppV200Diagnostics?.singleMoney?.(quote)?.value;if(!Number.isFinite(parsed)||Math.abs(parsed)!==Math.abs(n))n=null;}if(numbers.length&& !numbers.some(v=>Math.abs(v)===Math.abs(n)))n=null;if(/余额|餘額|balance|订单号|訂單號|数量|數量/i.test(quote))n=null;}
 if(n!==null&&r.sourceKind==='image'&&!amountEvidence(n,quote,rowEvidence))n=null;
 r.amount=n===null?null:Math.abs(n);r.flow=['in','out'].includes(d.flow)?d.flow:d.type==='expense'?'out':d.type==='income'?'in':n<0?'out':n>0?'in':'';if(n!==null&&/^[\s]*[+−–-]/.test(quote))r.flow=/^[\s]*[−–-]/.test(quote)?'out':'in';r.signedAmount=n===null?null:(r.flow==='out'?-r.amount:r.amount);
 r.type=['expense','income','refund','transfer','debt','unknown'].includes(d.type)?d.type:'unknown';if(r.type==='expense'&&r.flow==='in'||r.type==='income'&&r.flow==='out')r.type='unknown';
@@ -26187,7 +26227,7 @@ const available=[...(window.moneyAppV192Learning?.rules?.()||[]),...rules()].fil
 
 return verify;
 }
-const api={create,amountEvidence,datetime,clock,quotedClock,currencyEvidence,transactionDate};root.moneyAppDraftEvidence=api;if(typeof module==='object'&&module.exports)module.exports=api;
+const api={create,amountEvidence,datetime,clock,quotedClock,currencyEvidence,transactionDate,internationalDate};root.moneyAppDraftEvidence=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window==='object'?window:globalThis);
 /* Keep a source amount independent of its unresolved currency. No ledger writes. */
 (function(root){
@@ -26331,7 +26371,7 @@ window.aiV207RulesPage=function(){const b=book();if(!b)return;const rows=rules()
 window.aiV207RemoveRule=async function(ruleId){if(!await appConfirm('停用這條由你建立的規則？'))return;await window.moneyContextPolicy.commitRemoveField(ruleId);aiV207RulesPage();};
 window.aiV207AddRule=async function(){const b=book();if(!b)return;const level=prompt('規則等級：參考 或 強制');if(!['參考','強制'].includes(level))return;const fieldName=prompt('適用此帳簿的新草稿欄位：貨幣、分類 或 帳戶');const field=({'貨幣':'currency','分類':'category','帳戶':'account'})[fieldName];if(!['currency','category','account'].includes(field))return;const value=prompt('指定內容（必須為現有帳戶／分類／貨幣）');if(!value)return;const valid=field==='account'?D.accounts.some(a=>a.s===value):field==='category'?[...cats(b,'expense'),...cats(b,'income')].some(c=>c.name===value):D.accounts.some(a=>a.c===value);if(!valid)return alert('指定內容不存在。');let accountCurrency='';if(field==='account'){const found=D.accounts.filter(a=>a.s===value);accountCurrency=found.length===1?found[0].c:prompt('同名帳戶有不同貨幣，請指定貨幣代碼');if(!found.some(a=>a.c===accountCurrency))return;}const condition=prompt('限定原文包含的文字（留空代表此帳簿所有新草稿；只作你指定的文字匹配）');if(condition===null)return;if(!await appConfirm(`${level}規則：帳簿「${b.name}」的新草稿${condition?'，原文包含「'+condition+'」時':'全部'}使用 ${fieldName}=${value} ${accountCurrency}。與來源衝突時需核對，是否建立？`))return;const item={id:id(),level:level==='強制'?'forced':'reference',book:b.name,field,value,accountCurrency,contains:condition.trim().slice(0,100),createdAt:new Date().toISOString()};await window.moneyContextPolicy.commitAppend('field',item);aiV207RulesPage();};
 window.aiV207ApproveLearning=async function(){const p=state.run?.teach;if(!p)return;const a=D.accounts[p.accountId];if(!a||a.s!==p.accountName||a.c!==p.currency||book()?.name!==p.book)return alert('帳戶或帳簿已改變，請重新提出學習。');if(!await appConfirm('保存 '+p.phrase+' → '+a.c+' '+a.s+'？'))return;try{await window.moneyAppV204.save(p.kind,p.phrase,a,p.kind==='account-alias'?'*':p.book);await window.moneyAppV204.reload();state.run.teach=null;alert('已確認並保存本機帳戶對應。');}catch(e){alert('未能完成保存：'+e.message)}};
-const management=aiManageHubPage;aiManageHubPage=function(){const r=management.apply(this,arguments),host=document.querySelector('.book-fullpage .ai-v214-shell')||document.querySelector('.ai-v128-manage');if(host&&!document.getElementById('aiV207RulesEntry')){const button=document.createElement('button');button.id='aiV207RulesEntry';button.className='card ai-v128-row';button.innerHTML='<span class="ai-v128-row-icon">≡</span><span><b>工作與強制規則</b><small>參考建議與使用者指定範圍</small></span><i>›</i>';button.onclick=aiV207RulesPage;host.appendChild(button)}return r};
+const management=aiManageHubPage;aiManageHubPage=function(){const r=management.apply(this,arguments),host=document.querySelector('.book-fullpage .ai-v214-shell')||document.querySelector('.ai-v128-manage');if(host&&!document.getElementById('aiV207RulesEntry')){const button=document.createElement('button');button.id='aiV207RulesEntry';button.className='card ai-v128-row';button.innerHTML='<span class="ai-v128-row-icon">≡</span><span><b>工作與強制規則</b><small>參考建議與使用者指定範圍</small></span><i>›</i>';button.onclick=aiV207RulesPage;host.appendChild(button)}if(host&&!document.getElementById('receiptEvaluationEntry')){const button=document.createElement('button');button.id='receiptEvaluationEntry';button.className='card ai-v128-row';button.innerHTML='<span class="ai-v128-row-icon">▧</span><span><b>圖片辨識評測</b><small>逐張測試目前模型 · 匯出結果</small></span><i>›</i>';button.onclick=window.moneyAppReceiptEvaluation.open;host.appendChild(button)}return r};
 window.aiV207Diagnostics=function(){const r=state.run;if(r?.teach){if(confirm('待确认帳戶學習：'+r.teach.phrase+' → '+r.teach.currency+' '+r.teach.accountName+'。是否查看保存確認？'))return aiV207ApproveLearning();}alert(r?`實際工具：${r.tools.join('、')}\n略過圖片：${r.failedImages?.join('、')||'無'}\n工具問題：${r.errors.join('；')||'無'}\n產生草稿不等於入帳；沒有自動保存強制規則。`:'尚無本次分析紀錄。');};
 window.moneyAppV207Unified={version:'207-integrated-build217',maxImages:10,state,verify,CORE_TOOLS,toolRegistry,toolDirectory,toolSession,sessionTools,loadTools,draftWire,decodeDraftWire,decodeBatchTable,wireTool,accountReferences,expandBatch,datetime,findAccounts,context,analyze,execute,tools,saved,rules};window.AI_ENGINE_VERSION='v207-integrated-tool-agent-build217';window.MONEY_APP_UI_VERSION='v207-integrated-build217';
 })();
