@@ -269,3 +269,15 @@ html.desktop252[data-theme=dark] .desk-fx258{--fx-text:#c0cee0;--fx-muted:#8fa4b
 
 /* Shared MoneyApp brand asset; preserve the sidebar badge dimensions. */
 .desk-brand>span{background:transparent;overflow:hidden;flex-shrink:0}.desk-brand-icon{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
+
+/* Dark surfaces verified across dashboard, transactions and full-page dialogs. */
+html[data-theme=dark] .desk-sync-shortcut{background:#26354a;color:#d7e5fc}
+html[data-theme=dark] .desk-sync-shortcut small{color:#a7b4c6}
+html[data-theme=dark] .desk-icon-blue,html[data-theme=dark] .desk-tx-icon{background:#263a53;color:#98baff}
+html[data-theme=dark] .desk-icon-violet{background:#39304c;color:#c4afff}
+html[data-theme=dark] .desk-icon-green,html[data-theme=dark] .desk-tx-icon.is-income{background:#233e36;color:#86d4b5}
+html[data-theme=dark] .desk-pill,html[data-theme=dark] .desk-book-tag{background:#293442;color:#b9c8dc}
+html[data-theme=dark] .desk-pagination button,html[data-theme=dark] .desk-pager button,html[data-theme=dark] .desk-row-edit{background:#26354a;color:#b9d0f4;border-color:#364251}
+html[data-theme=dark].desktop252 .fp-back{background:#293442;color:#edf2f8}
+html[data-theme=dark] .desk-fx-status258{background:#233e36;color:#95d5bc}
+html[data-theme=dark] .desk-fx-status258[data-state=waiting]{background:#403724;color:#e8c58e}
